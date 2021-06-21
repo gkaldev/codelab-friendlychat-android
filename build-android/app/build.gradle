@@ -5,7 +5,7 @@ plugins {
 
 android {
     compileSdkVersion 30
-    buildToolsVersion '30.0.0'
+    buildToolsVersion '30.0.3'
 
     defaultConfig {
         applicationId "com.google.firebase.codelab.friendlychat"
@@ -18,6 +18,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        compose true
     }
 
     buildTypes {
@@ -40,6 +41,10 @@ android {
 
     kotlinOptions {
         jvmTarget = '1.8'
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.0.0-beta07'
     }
 }
 
@@ -74,6 +79,28 @@ dependencies {
     // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.5.0'
+
+    // Jetpack Compose
+    implementation 'androidx.compose.ui:ui:1.0.0-beta09'
+    // Tooling support (Previews, etc.)
+    implementation 'androidx.compose.ui:ui-tooling:1.0.0-beta09'
+    // Foundation (Border, Background, Box, Image, Scroll, shapes, animations, etc.)
+    implementation 'androidx.compose.foundation:foundation:1.0.0-beta09'
+    // Material Design
+    implementation 'androidx.compose.material:material:1.0.0-beta09'
+    // Material design icons
+    implementation 'androidx.compose.material:material-icons-core:1.0.0-beta09'
+    implementation 'androidx.compose.material:material-icons-extended:1.0.0-beta09'
+    // Integration with activities
+    implementation 'androidx.activity:activity-compose:1.3.0-beta02'
+    // Integration with ViewModels
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:1.0.0-alpha07'
+    // Integration with observables
+    implementation 'androidx.compose.runtime:runtime-livedata:1.0.0-beta09'
+    implementation 'androidx.compose.runtime:runtime-rxjava2:1.0.0-beta09'
+
+    // UI Tests
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4:1.0.0-beta09'
 }
 
 apply plugin: 'com.google.gms.google-services'
