@@ -21,16 +21,32 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.ProgressBar
-import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.AuthUI.IdpConfig.*
-import com.firebase.ui.database.FirebaseRecyclerOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.codelab.friendlychat.BuildConfig
-import com.google.firebase.codelab.friendlychat.databinding.ActivityMainBinding
 import com.google.firebase.codelab.friendlychat.model.FriendlyMessage
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -40,23 +56,17 @@ import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.ktx.storage
 
 
-class MainActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityMainBinding
-    private lateinit var manager: LinearLayoutManager
-
+class MainActivity : ComponentActivity() {
     // Firebase instance variables
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseDatabase
-    private lateinit var adapter: FriendlyMessageAdapter
+
+    private val openDocument = registerForActivityResult(MyOpenDocumentContract()) { uri ->
+        onImageSelected(uri)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // This codelab uses View Binding
-        // See: https://developer.android.com/topic/libraries/view-binding
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
         // When running in debug mode, connect to the Firebase Emulator Suite
         // "10.0.2.2" is a special value which allows the Android emulator to
         // connect to "localhost" on the host computer. The port values are
@@ -67,6 +77,17 @@ class MainActivity : AppCompatActivity() {
             Firebase.storage.useEmulator("10.0.2.2", 9199)
         }
 
+        val viewModel by viewModels<MainViewModel>()
+        viewModel.onGetMessages()
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    ChatScreen(viewModel = viewModel, modifier = Modifier.padding(16.dp))
+                }
+            }
+        }
+
+
         // Initialize Firebase Auth and check if the user is signed in
         auth = Firebase.auth
         if (auth.currentUser == null) {
@@ -76,51 +97,91 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Initialize Realtime Database
-        db = Firebase.database
-        val messagesRef = db.reference.child(MESSAGES_CHILD)
-
-        // The FirebaseRecyclerAdapter class and options come from the FirebaseUI library
-        // See: https://github.com/firebase/FirebaseUI-Android
-        val options = FirebaseRecyclerOptions.Builder<FriendlyMessage>()
-            .setQuery(messagesRef, FriendlyMessage::class.java)
-            .build()
-        adapter = FriendlyMessageAdapter(options, getUserName())
-        binding.progressBar.visibility = ProgressBar.INVISIBLE
-        manager = LinearLayoutManager(this)
-        manager.stackFromEnd = true
-        binding.messageRecyclerView.layoutManager = manager
-        binding.messageRecyclerView.adapter = adapter
-
         // Scroll down when a new message arrives
         // See MyScrollToBottomObserver for details
-        adapter.registerAdapterDataObserver(
-            MyScrollToBottomObserver(binding.messageRecyclerView, adapter, manager)
-        )
 
         // Disable the send button when there's no text in the input field
         // See MyButtonObserver for details
-        binding.messageEditText.addTextChangedListener(MyButtonObserver(binding.sendButton))
+//        binding.messageEditText.addTextChangedListener(MyButtonObserver(binding.sendButton))
 
         // When the send button is clicked, send a text message
-        binding.sendButton.setOnClickListener {
-            val friendlyMessage = FriendlyMessage(
-                binding.messageEditText.text.toString(),
-                getUserName(),
-                getPhotoUrl(),
-                null
-            )
-            db.reference.child(MESSAGES_CHILD).push().setValue(friendlyMessage)
-            binding.messageEditText.setText("")
-        }
+//        binding.sendButton.setOnClickListener {
+//            val friendlyMessage = FriendlyMessage(
+//                binding.messageEditText.text.toString(),
+//                getUserName(),
+//                getPhotoUrl(),
+//                null
+//            )
+//            db.reference.child(MESSAGES_CHILD).push().setValue(friendlyMessage)
+//            binding.messageEditText.setText("")
+//        }
 
         // When the image button is clicked, launch the image picker
-        binding.addMessageImageView.setOnClickListener {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
-            intent.addCategory(Intent.CATEGORY_OPENABLE)
-            intent.type = "image/*"
-            startActivityForResult(intent, REQUEST_IMAGE)
+//        binding.addMessageImageView.setOnClickListener {
+//            openDocument.launch(arrayOf("image/*"))
+//        }
+    }
+
+    @Composable
+    fun ChatScreen(viewModel: MainViewModel, modifier: Modifier) {
+        val messages by viewModel.messages.collectAsState()
+        Surface(modifier = Modifier.padding(16.dp)) {
+            MessageList(messages)
         }
+    }
+
+    @Composable
+    fun MessageList(messages: List<FriendlyMessage>) {
+        LazyColumn {
+            items(messages) { message -> MessageCard(message) }
+        }
+    }
+
+    @Composable
+    fun MessageCard(message: FriendlyMessage) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_account_circle_black_36dp),
+                contentDescription = null
+            )
+            Column {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Box(
+                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color.LightGray)
+                    ) {
+                        Text(
+                            text = message.text!!,
+                            style = MaterialTheme.typography.body1.copy(color = Color.Black),
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                    Row() {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = message.name!!,
+                            style = MaterialTheme.typography.body2.copy(color = Color.Gray),
+                            modifier = Modifier.padding(4.dp)
+
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun NewMessageInput() {
+
+    }
+
+    @Preview
+    @Composable
+    fun PreviewMessageList() {
+        val testMessages = listOf(
+            FriendlyMessage(name = "User1", text = "Hello from user1!"),
+            FriendlyMessage(name = "User2", text = "Hello from user2!"),
+        )
+        MessageList(testMessages)
     }
 
     public override fun onStart() {
@@ -132,16 +193,6 @@ class MainActivity : AppCompatActivity() {
             finish()
             return
         }
-    }
-
-    public override fun onPause() {
-        adapter.stopListening()
-        super.onPause()
-    }
-
-    public override fun onResume() {
-        super.onResume()
-        adapter.startListening()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -160,38 +211,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        Log.d(TAG, "onActivityResult: requestCode=$requestCode, resultCode=$resultCode")
-        if (requestCode == REQUEST_IMAGE) {
-            if (resultCode == RESULT_OK && data != null) {
-                val uri = data.data
-                Log.d(TAG, "Uri: " + uri.toString())
-                val user = auth.currentUser
-                val tempMessage =
-                    FriendlyMessage(null, getUserName(), getPhotoUrl(), LOADING_IMAGE_URL)
-                db.reference.child(MESSAGES_CHILD).push()
-                    .setValue(
+    private fun onImageSelected(uri: Uri) {
+        Log.d(TAG, "Uri: $uri")
+        val user = auth.currentUser
+        val tempMessage = FriendlyMessage(null, getUserName(), getPhotoUrl(), LOADING_IMAGE_URL)
+        db.reference
+                .child(MESSAGES_CHILD)
+                .push()
+                .setValue(
                         tempMessage,
                         DatabaseReference.CompletionListener { databaseError, databaseReference ->
                             if (databaseError != null) {
                                 Log.w(
-                                    TAG, "Unable to write message to database.",
-                                          databaseError.toException()
-                                      )
-                                      return@CompletionListener
-                                  }
+                                        TAG, "Unable to write message to database.",
+                                        databaseError.toException()
+                                )
+                                return@CompletionListener
+                            }
 
-                                  // Build a StorageReference and then upload the file
-                                  val key = databaseReference.key
-                                  val storageReference = Firebase.storage
-                                      .getReference(user!!.uid)
-                                      .child(key!!)
-                                      .child(uri!!.lastPathSegment!!)
-                                  putImageInStorage(storageReference, uri, key)
-                              })
-            }
-        }
+                            // Build a StorageReference and then upload the file
+                            val key = databaseReference.key
+                            val storageReference = Firebase.storage
+                                    .getReference(user!!.uid)
+                                    .child(key!!)
+                                    .child(uri.lastPathSegment!!)
+                            putImageInStorage(storageReference, uri, key)
+                        })
     }
 
     private fun putImageInStorage(storageReference: StorageReference, uri: Uri, key: String?) {
@@ -242,7 +287,6 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         const val MESSAGES_CHILD = "messages"
         const val ANONYMOUS = "anonymous"
-        private const val REQUEST_IMAGE = 2
         private const val LOADING_IMAGE_URL = "https://www.google.com/images/spin-32.gif"
     }
 }
