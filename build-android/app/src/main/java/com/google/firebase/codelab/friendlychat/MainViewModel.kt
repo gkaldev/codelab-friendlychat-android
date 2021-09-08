@@ -1,5 +1,6 @@
 package com.google.firebase.codelab.friendlychat
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.codelab.friendlychat.model.FriendlyMessage
@@ -22,5 +23,9 @@ class MainViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun onNewMessage(message: FriendlyMessage) {
+        Log.d("VM", message.toString())
     }
 }

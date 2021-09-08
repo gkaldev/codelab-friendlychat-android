@@ -30,12 +30,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -125,14 +121,17 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun ChatScreen(viewModel: MainViewModel, modifier: Modifier) {
         val messages by viewModel.messages.collectAsState()
-        Surface(modifier = Modifier.padding(16.dp)) {
-            MessageList(messages)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                MessageList(messages)
+            }
+            NewMessageInput { viewModel.onNewMessage(it) }
         }
     }
 
     @Composable
     fun MessageList(messages: List<FriendlyMessage>) {
-        LazyColumn {
+        LazyColumn(modifier = Modifier.fillMaxHeight()) {
             items(messages) { message -> MessageCard(message) }
         }
     }
@@ -147,7 +146,9 @@ class MainActivity : ComponentActivity() {
             Column {
                 Column(modifier = Modifier.padding(8.dp)) {
                     Box(
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color.LightGray)
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.LightGray)
                     ) {
                         Text(
                             text = message.text!!,
@@ -170,8 +171,31 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun NewMessageInput() {
+    fun NewMessageInput(onNewMessage: (FriendlyMessage) -> Unit) {
+        Row {
+            var text by remember { mutableStateOf("") }
+            NewMessageTextField(text) { text = it }
+            Button(onClick = {
+                onNewMessage(FriendlyMessage(text = text))
+                text = ""
+            },
+                enabled = text.isNotEmpty(),
+                content = {
+                Image(
+                    painterResource(id = R.drawable.outline_send_gray_24),
+                    contentDescription = "Send button"
+                )
+            })
+        }
+    }
 
+    @Composable
+    fun NewMessageTextField(text: String, updateText: (String) -> Unit) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = updateText,
+            label = { Text("Say something...") }
+        )
     }
 
     @Preview
